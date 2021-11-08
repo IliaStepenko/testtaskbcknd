@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<div class="w-50 m-auto " style="width:100%; height:90%;">
+    <div id="messages" style="height:75%" class="overflow-auto d-flex flex-column-reverse">
+            <ul id="message-list" class="p-0" style="list-style-type:none">
+
+            </ul>
+        </div>
+    <div id="message-form" class="d-flex flex-column p-3" style="height:25%">
+
+                <div class="form-group d-flex flex-row justify-content-between">
+                        <div>
+                            <input class="form-check-input" type="checkbox" id="send-anonymous">
+                              <label class="form-check-label" for="gridCheck">
+                                Send anonymously
+                              </label>
+                        </div>
+                        <div >
+                              <input class="form-check-input" type="checkbox" id="send-after">
+                              <label class="form-check-label" for="gridCheck">
+                                Send delayed
+                              </label>
+
+                             <input type="number" id="min" value="0" min="0" max="60" style="width:45px; height:25px; margin-left:10px">
+                              <labe> min</labe>
+                             <input type="number" id="sec" value="0"  min="0" max="60" style="width:45px; height:25px; margin-left:10px">
+                              <labe> sec</labe>
+                    </div>
+                </div>
+
+                <textarea class="form-control" id="message-input" rows="3" style="resize: none;"></textarea>
+
+
+                    <button id="send-message" class="btn btn-primary mt-2">Отправить</button>
+
+
+
+        </div>
+</div>
+
+
+<script>
+
+
+
+    fetch('http://'+window.location.host+'/api/chats/chat/commonchat/messages/', {method: 'GET', mode:'cors', cache:'default', credentials: "include"})
+        .then(response => response.json())
+        .then(function(messages){
+            messages['results'].forEach(
+                function(message){
+
+                    as_anonymous = message['author']['is_anonymous'] ? ' as Anonymous' : '';
+
+                    m = '<li class="bg-light mt-2 p-3 rounded"> <div class="d-flex flex-column"> \
+                                <span style="font-size: 1.1em;font-weight:bold">'+ message['author']['username'] + as_anonymous + '</span> \
+                                <span class="mt-2" >'+message['text'].replace('\n', '<br>') +'</span> \
+                                <span class="mt-2 text-muted" style="font-size: 0.7em;">'+message['send_date']+'</span> \
+                            </div> \
+                         </li>';
+
+
+                    $("#message-list").append(m);
+                    $("#messages").scrollTop($("#messages")[0].scrollHeight);
+                }
+            );
+        });
+
+    $("#messages").scrollTop($("#messages")[0].scrollHeight);
+
+    const socket = new WebSocket("ws://"+window.location.host+"/ws/chats/chat/commonchat/");
+
+    socket.onmessage = function(event) {
+        message = JSON.parse(event['data'])['message'];
+
+        var displayed_username = '';
+
+        if(message['author']['username'] == 'AnonymousUser'){
+            console.log(message);
+            if('its_me' in message['author'] && message['author']['its_me']==true){
+                displayed_username = '{{user.username}} as Anonymous';
+            } else {
+                displayed_username = message['author']['username']
+            }
+
+        } else {
+            displayed_username = message['author']['username']
+        }
+
+
+        m =  '<li class="m-2"><div class="d-flex flex-column"><a>'+ displayed_username +'</a><span>' + message['text'] + '</span><span>'+message['send_date']+'</span></div></li>';
+          m = '<li class="bg-light mt-2 p-3 rounded"> <div class="d-flex flex-column"> \
+                                <span style="font-size: 1.1em;font-weight:bold">'+ displayed_username + '</span> \
+                                <span class="mt-2" >'+message['text'] +'</span> \
+                                <span class="mt-2 text-muted" style="font-size: 0.7em;">'+message['send_date']+'</span> \
+                            </div> \
+                         </li>';
+        $("#message-list").append(m);
+        $("#messages").scrollTop($("#messages")[0].scrollHeight);
+    };
+
+    $("#send-message").click(function(){
+        var send_anonymous = false;
+        var send_after = 0;
+
+        if ($('#send-anonymous').is(':checked')){
+	        send_anonymous = true;
+        }
+
+        if ($('#send-after').is(':checked')){
+	        send_after = parseInt($('#min').val()) * 60 + parseInt($('#sec').val());
+        }
+        console.log(send_after);
+
+        var text = $('textarea#message-input').val();
+        if (text != ''){
+            socket.send(JSON.stringify({"text":text, "is_anonymous":send_anonymous, "send_after": send_after}));
+        }
+        $('textarea#message-input').val('');
+    });
+
+
+
+</script>
+
+{% endblock %}

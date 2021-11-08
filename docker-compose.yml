@@ -1,0 +1,31 @@
+version: '2'
+services:
+  db:
+    image: postgres:alpine
+    volumes:
+      - /var/run/postgresql:/var/run/postgresql:z
+    ports:
+      - 127.0.0.1:5432:5432/tcp
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    cpu_shares: 256
+    mem_limit: 1200000000
+
+  redis:
+    image: redis:alpine
+    ports:
+      - 6377:6379/tcp
+      - 6379:6379/tcp
+    cpu_shares: 172
+    mem_limit: 512000000
+
+  web:
+    build: .
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
